@@ -12,6 +12,9 @@ while ($line = fgets($fh)) {
 }
 fclose($fh);
 
+
+
+
 $sql="select * from users";
 $content= mysqli_query($conn,$sql);
 if (mysqli_num_rows($content)>0){
@@ -20,8 +23,5 @@ if (mysqli_num_rows($content)>0){
     }
     
 }
-
-
-
 
 ?>
