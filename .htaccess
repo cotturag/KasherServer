@@ -1,0 +1,7 @@
+
+Options +FollowSymlinks
+RewriteEngine on
+
+
+RewriteRule ^list Controller.php?view=all [nc,qsa]
+RewriteRule ^mobile/list/([0-9]+)/$   RestController.php?view=single&id=$1 [nc,qsa]
