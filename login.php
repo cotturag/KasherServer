@@ -1,14 +1,13 @@
 <?php
-
+$badUserPass=false;
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    
     if (isset($_POST["logout"])){        
-        unset($_SESSION["loggeduser"]);
-        
+        unset($_SESSION["loggeduser"]);        
     }
-    if (isset($_POST['username'])&&isset($_POST["password"])){
+    if (isset($_POST["username"])&&$_POST["username"]<>""&&isset($_POST["password"])&&$_POST["password"]<>""){        
         $user=$_POST['username'];        
         $password=$_POST['password'];
-
         $res=R::getAll("SELECT password FROM users WHERE id='".$user."'");
         foreach($res as $key => $value){
             foreach ($value as $k=>$v){                
@@ -16,10 +15,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }    
         }
         if ($password==$pass){          
-            $_SESSION["loggeduser"]=$user;   
-        }            
+            $_SESSION["loggeduser"]=$user;            
+        }else $badUserPass=true;
     }
 }
+
 if (!isset($_SESSION["loggeduser"])){
     include("loginDialog.php");
 }

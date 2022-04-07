@@ -5,6 +5,8 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 
+  
+
 echo '<!DOCTYPE html>
 <html>
     <head>
@@ -15,14 +17,48 @@ echo '<!DOCTYPE html>
         <script src="../bootstrap/js/bootstrap.bundle.js"></script> 
     </head>
     <body>        
-        <form method="post" action="index.php">';
-
+        <form method="post" action="index.php">
+            <script type="text/javascript">    
+                function showLogout(){
+                    document.getElementById("logout").style.visibility="visible";                    
+                }
+              
+             
+                
+            </script>
+            <div class="row" style="margin:0;padding:0;">
+                <div class="col-sm-2" style="margin:0;padding:0;"></div>
+                <div class="col-sm-8" style="background-color: #EAEA7F;height:50px;margin:0;padding:0;border: 1px;">                    
+                    <div class="row" style="margin:0;padding:0;">
+                        <div class="col-sm-10" style="margin:0;padding:0;">
+                            <span style="padding-left:10px;font-size: 20pt;">Kasher</span>
+                            <span style="padding-left:10px;font-size: 14pt;">Családi pénzügyi nyilvántartó</span>                    
+                        </div>
+                        <div class="col-sm-1" style="margin:0;padding:0;"></div>
+                        <div class="col-sm-1" style="margin:0;padding:0;">
+                            <input type="submit" name="logout" value="Kilépés" style="visibility:hidden;" id="logout">                            
+                        </div>
+                    </div>                                        
+                </div>
+                <div class="col-sm-2" style="margin:0;padding:0;"></div>
+            </div>';      
 
 include("dbConnectRedbean.php");
 include("login.php");
+
 if (isset($_SESSION["loggeduser"])){   
     $loggedUser=$_SESSION["loggeduser"];
-    $family=$loggedUser;//TODO ez iediglenes, mert nem minden felhasználóra igaz
+    echo '<script type="text/javascript">
+            showLogout();            
+          </script>';
+
+    $familyContent=R::getAll("SELECT family FROM users WHERE id='".$loggedUser."'");
+    foreach($familyContent as $key => $value){        
+            $family=$value["family"];
+        }
+        
+    
+    
     $selectFromSource="SELECT transactions.id, transactions.source,transactions.destination"
             . ",transactions.date,transactions.money,"
             . "transactions.details,transactions.transactiontype,"
@@ -31,145 +67,176 @@ if (isset($_SESSION["loggeduser"])){
             . ",transactions.date,transactions.money,"
             . "transactions.details,transactions.transactiontype,"
             . "funds.name AS destinationName,users.name AS username FROM transactions,funds,users ";    
+    //olyan tranzakciókat kér le ami privát számlákat tartalmaz
     $fromAccountsPrivate=
               "WHERE transactions.source=funds.idfd "
             . "AND funds.owner=users.id "
-            . "AND funds.family='".$family."' 
-               AND funds.type='1' ";               
-    $fromAccountsSupervisedInserted=
+            . "AND funds.family='".$family."' "
+            . "AND owner='".$loggedUser."' "
+            . "AND funds.type='1' ";               
+    //olyan tranzakciókat kér le, ahol a felvett közös és a felügyelt számlákból azok vannak,
+    // ahol a felvételnél új példányt kellett beszúrni
+    $fromAccountsPublicAndSupervisedInserted=
               "WHERE transactions.source=funds.idfd "
             . "AND funds.owner=users.id "
             . "AND funds.family='".$family."' "
             . "AND otherowner='".$loggedUser."' "
             . "AND hookedto > 0 "
-            . "AND funds.type='3' ";            
-    $fromAccountsSupervisedUpdated=
+            . "AND (funds.type='2' OR funds.type='3') ";            
+    //olyan tranzakciókat kér le, ahol a felvett közös és a felügyelt számlákból azok vannak,
+    //ahol az owner az otherownerhez lett updatelve
+    $fromAccountsPublicAndSupervisedUpdated=
               "WHERE transactions.source=funds.idfd "
             . "AND funds.owner=users.id "
             . "AND funds.family='".$family."' "
             . "AND hookedto=0 "
             . "AND otherowner='".$loggedUser."' "
-            . "AND funds.type='3' "
-            . "AND (SELECT COUNT(*) FROM funds ".$fromAccountsSupervisedInserted.")=0 ";
-    $fromAccountsPublicAll=
-              "WHERE transactions.source=funds.idfd "
-            . "AND funds.owner=users.id "
-            . "AND funds.family='".$family."' "
-            . "AND funds.type='2' ";
+            . "AND (funds.type='2' OR funds.type='3') "
+            . "AND (SELECT COUNT(*) FROM funds ".$fromAccountsPublicAndSupervisedInserted.")=0 ";
     
+    
+    //azokat a tranzakciókat kéri le ahol privát költségkategóriák vannak
     $toCostCategoriesPrivate=
               "WHERE transactions.destination=funds.idfd "
             . "AND funds.owner=users.id "
-            . "AND funds.family='".$family."' 
-               AND funds.type='A' ";        
-    $toCostCategoriesSupervisedInserted=
+            . "AND funds.family='".$family."' "
+            . "AND owner='".$loggedUser."' "
+            . "AND funds.type='A' ";        
+    //olyan tranzakciókat kér le, ahol a felvett közös és a felügyelt költségkategóriákból azok vannak,
+    // ahol a felvételnél új példányt kellett beszúrni
+    $toCostCategoriesPublicAndSupervisedInserted=
              "WHERE transactions.destination=funds.idfd "
             . "AND funds.owner=users.id "
             . "AND funds.family='".$family."' "
             . "AND otherowner='".$loggedUser."' "
             . "AND hookedto > 0 "
-            . "AND funds.type='C' ";                  
-    $toCostCategoriesSupervisedUpdated=
+            . "AND (funds.type='B' OR funds.type='C') ";                  
+    //olyan tranzakciókat kér le, ahol a felvett közös és a felügyelt költségkategóriákból azok vannak,
+    //ahol az owner az otherownerhez lett updatelve
+    $toCostCategoriesPublicAndSupervisedUpdated=
               "WHERE transactions.destination=funds.idfd "
             . "AND funds.owner=users.id "
             . "AND funds.family='".$family."' "
             . "AND hookedto=0 "
             . "AND otherowner='".$loggedUser."' "
-            . "AND funds.type='C' "
-            . "AND (SELECT COUNT(*) FROM funds ".$fromAccountsSupervisedInserted.")=0 ";
-    $toCostCategoriesPublicAll= 
+            . "AND (funds.type='B' OR funds.type='C') "
+            . "AND (SELECT COUNT(*) FROM funds ".$fromAccountsPublicAndSupervisedInserted.")=0 ";
+    
+    //itt privát számlákat tartalmazó tranzakciókat kér le bevételkor és pénzmozgáskor
+    //(amelyek a destinationnál fordulnak elő)    
+    $toAccountInDestinationPrivate=
               "WHERE transactions.destination=funds.idfd "
             . "AND funds.owner=users.id "
             . "AND funds.family='".$family."' "
-            . "AND funds.type='B' ";
-    
-    $toAccountInDestinationSupervisedInserted=
+            . "AND owner='".$loggedUser."' "
+            . "AND funds.type='1' "
+            . "AND (transactions.transactiontype='2' OR transactions.transactiontype='3') ";       
+    //itt felvett közös és felügyelt számlákat tartalmazó tranzakciókat kér le bevételkor és pénzmozgáskor
+    //(amelyek a destinationnál fordulnak elő)    
+    // (beszúrás)
+    $toAccountInDestinationPublicAndSupervisedInserted=
               "WHERE transactions.destination=funds.idfd "
             . "AND funds.owner=users.id "
             . "AND funds.family='".$family."' "
             . "AND otherowner='".$loggedUser."' "
             . "AND hookedto > 0 "
-            . "AND funds.type='3' "
+            . "AND (funds.type='2' OR funds.type='3') "
             . "AND (transactions.transactiontype='3' OR transactions.transactiontype='2') ";    
-    $toAccountInDestinationSuperVisedUpdated=  "WHERE transactions.destination=funds.idfd "
+    //itt felvett közös és felügyelt számlákat tartalmazó tranzakciókat kér le bevételkor és pénzmozgáskor,
+    //(amelyek a destinationnál fordulnak elő)    
+    // (updateelés)
+    $toAccountInDestinationPublicAndSuperVisedUpdated=  "WHERE transactions.destination=funds.idfd "
             . "AND funds.owner=users.id "
             . "AND funds.family='".$family."' "
             . "AND hookedto=0 "
             . "AND otherowner='".$loggedUser."' "
-            . "AND funds.type='3' "
+            . "AND (funds.type='2' OR funds.type='3') "
             . "AND (transactions.transactiontype='3' OR transactions.transactiontype='2') "
-            . "AND (SELECT COUNT(*) FROM funds ".$toAccountInDestinationSupervisedInserted.")=0 ";
+            . "AND (SELECT COUNT(*) FROM funds ".$toAccountInDestinationPublicAndSupervisedInserted.")=0 ";
            
-    $toAccountInDestinationPublicAll=   "WHERE transactions.destination=funds.idfd "
-            . "AND funds.owner=users.id "
-            . "AND funds.family='".$family."' "
-            . "AND funds.type='2' "
-            . "AND (transactions.transactiontype='3' OR transactions.transactiontype='2') ";
     
    
     
-    $union= " UNION ALL ";            
+    $union= " UNION ALL ";  
+    //$orderBy=" order BY transaction.date ";
        
+    //azok a tranzakciók, ahol privát számlák, felvett közös és felügyelt számlák vannak
+    //itt nem jelenik meg költségkategóriát tartalmazó tranzakció
     $sqlSource=
             $selectFromSource.$fromAccountsPrivate.
             $union.
-            $selectFromSource.$fromAccountsSupervisedInserted.
+            $selectFromSource.$fromAccountsPublicAndSupervisedInserted.
             $union.
-            $selectFromSource.$fromAccountsSupervisedUpdated.
-            $union.
-            $selectFromSource.$fromAccountsPublicAll;
-     
+            $selectFromSource.$fromAccountsPublicAndSupervisedUpdated;
+      
+    
+    //azok a tranzakciók, ahol privát költségkategóriák, felvett közös és felügyelt költségkategóriák vannak
+    //itt megjelenik privát, felvett közös és felügyelt számlát tartalmazó tranzakció
+    //(a destination-nél)
     $sqlDestination=
             $selectFromDestination.$toCostCategoriesPrivate.
             $union.
-            $selectFromDestination.$toCostCategoriesSupervisedInserted.
+            $selectFromDestination.$toCostCategoriesPublicAndSupervisedInserted.
             $union.
-            $selectFromDestination.$toCostCategoriesSupervisedUpdated.
-            $union.           
-            $selectFromDestination.$toCostCategoriesPublicAll.
-            $union.                        
-            $selectFromDestination.$toAccountInDestinationSupervisedInserted.
+            $selectFromDestination.$toCostCategoriesPublicAndSupervisedUpdated.
+            $union.                       
+            $selectFromDestination.$toAccountInDestinationPrivate.
             $union.
-            $selectFromDestination.$toAccountInDestinationSuperVisedUpdated.
+            $selectFromDestination.$toAccountInDestinationPublicAndSupervisedInserted.
             $union.
-            $selectFromDestination.$toAccountInDestinationPublicAll;
+            $selectFromDestination.$toAccountInDestinationPublicAndSuperVisedUpdated;
             
             
-            
-     
-    
-    
-            
-         
-     
-   
-   // echo $sqlSource;    
-  
-  //  echo $sqlDestination;   
-   // echo "<br><br><br><br>";  
+          
     
     $contentSource=R::getAll($sqlSource);       
     $contentDestination=R::getAll($sqlDestination);
+    //összefésülöm a kettőt így a költségkategóriás tömb teljes tranzakciókat
+    //fog tartalmazni
     foreach($contentDestination as $key => $value){
+        $equal=false;
         foreach($contentSource as $dkey => $dvalue) {
                 if ($value["id"]==$dvalue["id"]){
                     $contentDestination[$key]["sourceName"]=$dvalue["sourceName"];
-                    
-                }
-        }   
+                    $equal=true;                
+                }                
+        }
+        if ($contentDestination[$key]["transactiontype"]<>"2"&&!$equal) unset($contentDestination[$key]);
     }
-        /*
-        foreach ($value as $k=>$v){                
-                $common[$key][$k]=$v;
-                echo $k."->".$v."<br>";
-            }  */
-    /*$contentDestination=R::getAll($sqlDestination);
-    foreach($contentDestination as $key => $value){            
-                $common[$key]["destinationName"]=$value["sourceName"];
-        }   
-      
-     */
-   /*
+    //az összefésülés logikája, hogy a költségkategóriákat tartalmazó asszociatív
+    //tömb minden elemének az id mezőjét összehasonlítom a számlákat tartalmazó
+    //asszociatív tömb minden elemének id mezőjével, egyezés esetén beírom a
+    //költségkategóriás tömbbe a "sourceName" mezőbe számlás tömbben lévő
+    //"sourceName"-et, így a költségkategóriás tömb teljes tranzakciókat fog
+    //tartalmazni, ha nem talált a költségkategóriás tömb eleméhez passzoló
+    //id-jű számlás tömböt, akkor vagy bevétel zajlott le, vagy a 
+    //a költségkategóriás tömbben a destinationnél olyan számla vagy költségkategória
+    //szerepel, amire olyan számláról lett tranzakció indítva, ami nincs felvéve
+    //tehát ezeket a tranzakciókat kitörlöm a költségkategóriás tömbből
+    //de csak akkor törlök ha nem bevétel történt
+    
+    
+    function sortArray($my_array)
+    {
+	for($i=0;$i<count($my_array);$i++){
+		$val = $my_array[$i]["date"];
+		$j = $i-1;
+		while($j>=0 && $my_array[$j]["date"] > $val){
+			$my_array[$j+1]["date"] = $my_array[$j]["date"];
+			$j--;
+		}
+		$my_array[$j+1]["date"] = $val;
+	}
+    return $my_array;
+    }
+    
+    
+    $sortedTransactions= sortArray($contentDestination);
+    $reversedTransaction= array_reverse($sortedTransactions);
+    
+    /*
+    
+   
     foreach($contentDestination as $key => $value){
         echo "<br>";
         foreach ($value as $k=>$v){                
@@ -178,13 +245,15 @@ if (isset($_SESSION["loggeduser"])){
             echo "<br>";
             
         }   
-     */ 
-
+     
+*/
     include("style.php");  
     echo '<div class="row">'
        . '<div class="col-sm-2"></div>'
-       . '<div class="col-sm-8">';
-    foreach($contentDestination as $key => $value){            
+       . '<div class="col-sm-8" style="text-align:center;">'
+            . 'Tranzakciók: ';if (isset($_SESSION["loggeduser"])) echo $_SESSION["loggeduser"];
+         echo '';
+    foreach($reversedTransaction as $key => $value){            
                switch ($value["transactiontype"]) {
                     case 1:{
                         include("cost.php");                        
@@ -203,7 +272,7 @@ if (isset($_SESSION["loggeduser"])){
     echo '</div>'
        . '<div class="col-sm-2"></div>'
        . '</div>';
-    echo "<br><br><Kilépés><input type='submit' name='logout' value='Kilépés'>";
+    
 }
 
 echo "</form></body></html>";
