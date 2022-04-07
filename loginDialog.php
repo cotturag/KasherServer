@@ -15,7 +15,7 @@
             </tr>        
         </table>
         <br>
-        <input type='submit' style="" id="login">       
+        <input type='submit' style="" id="login" value="Bejelentkezés">       
         <?php 
                 if ($badUserPass) echo "<span style='color:red;'>Rossz felhasználónév vagy jelszó!</span>";
                 $badUserPass=false;
